@@ -44,8 +44,8 @@ def get_questions(difficulty: str, amount: int = 10) -> list[dict]:
         incorrect = [html.unescape(ans) for ans in item.get("incorrect_answers", [])]
 
         # Pad incorrect answers to 3 if less than 3
-        if not correct or not question_text or not len(incorrect) != 3:
-            incorrect.append("Option X")  # placeholder text
+        # if not len(incorrect) != 3:
+        #     incorrect.append("Option X")  # placeholder text
 
         options = incorrect + [correct]  # ensure 3 incorrect + 1 correct
         random.shuffle(options)
@@ -122,29 +122,48 @@ def start_game() -> None:
 
 def submit_answer() -> None:
     """Check the current selected answer."""
-    pass
+    if st.session_state.selected_option is None:
+        st.warning("Choose an answer bro")
+        return
+    
+    st.session_state.selected_answer = st.session_state.selected_option
+    correct_answer = st.session_state.questions[st.session_state.current_q]["correct_answer"]
+
+    if st.session_state.selected_answer == correct_answer:
+        st.session_state.score += 1
+
+    st.session_state.answered = True
 
 
 def next_question() -> None:
     """Move to the next question."""
-    pass
+    st.session_state.current_q += 1
+    st.session_state.answered = False
+    st.session_state.selected_answer = None
+    st.session_state.selected_option = None
 
 
 def back_to_menu() -> None:
     """Return to main menu and reset game data."""
-    pass
+    st.session_state.page = "menu"
+    st.session_state.questions = []
+    st.session_state.current_q = 0
+    st.session_state.answered =False
+    st.session_state.score = 0
+    st.session_state.selected_option = None
+    st.session_state.selected_answer = None
 
 
 def replay_same_settings() -> None:
     """Start a fresh game with the same category and difficulty."""
-    pass
+    start_game()
 
 
 # --- UI --- #
 # --------------------------------------------------
 # Main menu screen
 # --------------------------------------------------
-if not st.session_state.game_started and st.session_state.page == "menu":
+if st.session_state.page == "menu":
     st.title("🌎 Geography Trivia Game")
     st.write("Answer 6 or 7 questions correctly and you get bragging rights")
 
@@ -177,6 +196,63 @@ else:
 
         st.progress((current_index + 1) / total_questions)
         st.markdown(f" ### {current_question["question"]}")
+
+        st.radio(
+            "Answer:",
+            current_question["options"],
+            key="selected_option",
+            index=None,
+            disabled=st.session_state.answered
+        )
+
+        if not st.session_state.answered:
+            st.button("Submit", on_click=submit_answer, use_container_width=True)
+            st.button("Back to menu", on_click=back_to_menu, use_container_width=True)
+        else: 
+            correct_answer = current_question["correct_answer"]
+
+            if st.session_state.selected_answer == correct_answer:
+                st.success("Correct!")
+            else:
+                st.error(
+                    f"The answer you chose: {st.session_state.selected_answer} is incorrect :(\n\n"
+                    f"The correct answer is {correct_answer}"
+                )
+            if current_index < total_questions - 1:
+                st.button(
+                    "Next Question", on_click=next_question, use_container_width=True
+                )
+            else:
+                st.button(
+                    "What's my score i wanna see", 
+                    on_click=next_question, 
+                    use_container_width=True
+                )
+    else:
+        st.balloons()
+        st.header("Game over")
+        st.write(f"Your final score is **{st.session_state.score}/{len(st.session_state.questions)}**")
+
+        if st.session_state.score == len(st.session_state.questions):
+            st.success("Yay you got a perfect score you get bragging rights")
+        elif st.session_state.score >= 7:
+            st.success("Cool, you still get bragging rights")
+        elif st.session_state.score >= 4:
+            st.info("Ehh, nepal")
+        else:
+            st.warning("c'mon man")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.button(
+                    "Play again", on_click=replay_same_settings, use_container_width=True
+                )
+        with col2:
+            st.button(
+                    "Back to menu",
+                    on_click=back_to_menu, 
+                    use_container_width=True,
+                )
 
     # chosen = next(
     #     (
